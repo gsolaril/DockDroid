@@ -3,8 +3,9 @@
 This is not cheating -- it is a unit test of everything except the model. If a
 plan that is correct by inspection fails, the bug is ours.
 
-It also doubles as documentation: the shortest known trace for each task is a
-useful benchmark for 'how many steps should this cost?'.
+It doubles as documentation: the shortest known trace for each task is a useful
+benchmark for "how many steps should this cost?". The oracle's 3.40 mean steps is
+the floor the model is measured against.
 """
 
 from __future__ import annotations

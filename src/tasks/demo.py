@@ -5,6 +5,9 @@ Rules that make this an eval and not a demo:
   1. The check reads the phone's state directly. It never asks the model.
   2. The goal is written in natural language, the way a user would say it.
   3. The check is written independently of the plan used to reach it.
+  4. The check is about what changed, not only where you ended up. "Go to jobs
+     and come back" must prove it visited jobs; the premature-done brain found
+     that hole on its first run (see `visits` in `src/phone/fake.py`).
 
 Ten is the smallest honest number. Below that, a single task moving changes the
 score by 10 points and you cannot tell a real improvement from luck.
@@ -12,16 +15,7 @@ score by 10 points and you cannot tell a real improvement from luck.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
-
-
-@dataclass(frozen=True)
-class Task:
-    id: str
-    goal: str
-    check: Callable[[object], bool]
-    max_steps: int = 15
+from ..models.task import Task
 
 
 def _has_application(phone, job: int, name: str, email: str) -> bool:
@@ -74,7 +68,9 @@ TASKS: list[Task] = [
     Task(
         id="jobs_then_home",
         goal="Open the list of jobs and then go back to the home screen.",
-        check=lambda p: p.screen == "home",
+        # Ending on home is not enough: we start on home. It must have gone
+        # to jobs and come back, or a no-op would pass.
+        check=lambda p: p.screen == "home" and "jobs" in p.visits,
         max_steps=10,
     ),
     Task(
@@ -107,4 +103,6 @@ def by_id(task_id: str) -> Task:
     for t in TASKS:
         if t.id == task_id:
             return t
-    raise SystemExit(f"unknown task {task_id!r}; available: {', '.join(t.id for t in TASKS)}")
+    raise SystemExit(
+        f"unknown task {task_id!r}; available: {', '.join(t.id for t in TASKS)}"
+    )

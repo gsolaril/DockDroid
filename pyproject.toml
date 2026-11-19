@@ -22,13 +22,21 @@ classifiers = [
 dynamic = ["dependencies"]
 
 [project.scripts]
-dockdroid = "dockdroid.cli:main"
+dockdroid = "src.main:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
+# `src` is an importable top-level package, exactly like LTX-Python.
 [tool.setuptools.packages.find]
-include = ["dockdroid*"]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

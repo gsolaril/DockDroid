@@ -13,23 +13,11 @@ The headline numbers, in the order that matters:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from .fake_phone import FakePhone
-from .harness import Episode, run_episode
-from .tasks import TASKS, Task
-
-
-@dataclass
-class Result:
-    task: Task
-    episode: Episode
-    passed: bool
-    final_screen: str
-
-    @property
-    def false_done(self) -> bool:
-        return self.episode.claimed_done and not self.passed
+from ..models import Result, Task
+from ..phone.fake import FakePhone
+from ..utils import Log
+from .loop import run_episode
+from ..tasks import TASKS
 
 
 def run_task(task: Task, brain_factory, verbose: bool = False, max_steps: int | None = None) -> Result:
@@ -49,7 +37,9 @@ def print_transcript(result: Result) -> None:
     print(f"GOAL: {ep.goal}")
     for s in ep.steps:
         action = s.action.get("tool") if s.action else "?"
-        detail = ", ".join(f"{k}={v!r}" for k, v in (s.action or {}).items() if k in ("element", "text", "key"))
+        detail = ", ".join(
+            f"{k}={v!r}" for k, v in (s.action or {}).items() if k in ("element", "text", "key")
+        )
         outcome = f"ERROR: {s.error}" if s.error else s.result
         print(f"  {s.n:>2}. [{s.screen}] {action}({detail}) -> {outcome}")
     verdict = "PASS" if result.passed else "FAIL"
@@ -65,19 +55,32 @@ def run_suite(brain_factory, tasks: list[Task] | None = None, verbose: bool = Fa
     return results
 
 
+def summarise(results: list[Result]) -> str:
+    """One line per brain: the only comparison that matters in lesson 0.x."""
+    n = len(results)
+    passed = sum(r.passed for r in results)
+    false_done = sum(r.false_done for r in results)
+    errors = sum(r.episode.errors for r in results)
+    steps = sum(len(r.episode.steps) for r in results) / n
+    return (
+        f"success {passed}/{n} | false-done {false_done} | "
+        f"tool errors {errors} | mean steps {steps:.2f}"
+    )
+
+
 def report(results: list[Result]) -> None:
     w = max(len(r.task.id) for r in results) + 2
     print()
-    print(f"{'task':<{w}}{'result':<8}{'steps':>6}{'tools':>7}{'errors':>8}{'tokens':>8}")
-    print("-" * (w + 37))
+    print(f"{'task':<{w}}{'result':<12}{'steps':>6}{'tools':>7}{'errors':>8}{'tokens':>8}")
+    print("-" * (w + 41))
     for r in results:
         ep = r.episode
         verdict = "PASS" if r.passed else ("FALSE-DONE" if r.false_done else "FAIL")
         print(
-            f"{r.task.id:<{w}}{verdict:<8}{len(ep.steps):>6}{ep.tool_calls:>7}"
+            f"{r.task.id:<{w}}{verdict:<12}{len(ep.steps):>6}{ep.tool_calls:>7}"
             f"{ep.errors:>8}{ep.prompt_tokens + ep.completion_tokens:>8}"
         )
-    print("-" * (w + 37))
+    print("-" * (w + 41))
 
     n = len(results)
     passed = sum(r.passed for r in results)
@@ -92,3 +95,4 @@ def report(results: list[Result]) -> None:
     print(f"mean steps       {steps:.2f}")
     print(f"mean tokens      {tokens:.0f}   (estimated: characters / 4)")
     print()
+    Log.info(summarise(results))

@@ -1,38 +1,33 @@
-"""A fake Android phone.
+"""A fake Android phone: a tiny job-board app as a state machine.
 
 Why this file exists
 --------------------
 Debugging two unknowns at the same time is how projects die. In lesson 0.1 the
-model is the only unknown; the phone is a deterministic state machine we can
-read and reason about completely.
-
-In lesson 1.x this class gets replaced by a real redroid container behind the
-*same two methods*: `observe()` and `perform(action)`. Nothing above this file
-should need to change when that happens. That is the whole point of the split.
+model is the only unknown; the phone is deterministic and can be read top to
+bottom. In lesson 1.x this class is replaced by a redroid container behind the
+*same two methods*, `observe()` and `perform(action)`.
 
 The contract
 ------------
 - `observe()`   -> a dict describing what is on screen right now. Read-only.
 - `perform(a)`  -> executes one action, returns a short status string, or raises
                    ToolError. It never returns "success" for something it did
-                   not do; the caller re-reads the screen to find out what
-                   actually happened.
+                   not do; the caller re-reads the screen to find out.
+
+One thing the real phone cannot give us for free: `visits`. A list of screens
+this session has actually entered, in order. It exists because "open jobs, then
+go back home" is only satisfied if the agent went to jobs -- see the check in
+`src/tasks/demo.py`, which the premature-done brain caught as a hole.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from ..utils import Log
+from .base import ToolError
 
-class ToolError(Exception):
-    """An action the phone refused. This is a normal event, not a crash.
-
-    The harness turns it into the model's next observation, so a bad action
-    costs one step instead of the whole run.
-    """
-
-
-# The "app" behind the fake phone: a tiny job board.
+# The "app" behind the fake phone.
 JOBS = [
     (1, "Quant Developer", "Axiom Capital"),
     (2, "Malware Analyst", "Northbridge Security"),
@@ -68,10 +63,11 @@ class FakePhone:
     def reset(self) -> None:
         self.screen = "home"
         self.stack: list[str] = []
+        self.visits: list[str] = ["home"]
         self.current_job: int | None = None
         self.form_job: int | None = None
         self.profile = {"name": "", "email": ""}
-        self.draft = {"name": "", "email": ""}  # what is typed but not saved yet
+        self.draft = {"name": "", "email": ""}  # typed but not saved yet
         self.applications: list[dict] = []
         self.chat_open: int | None = None
         self.toast = ""
@@ -150,6 +146,7 @@ class FakePhone:
         """Execute exactly one action. Raise ToolError if it is not possible."""
         self.toast = ""
         tool = action.get("tool")
+        Log.debug(f"[phone] {self.screen} <- {action}")
         if tool == "observe":
             return "looked again"
         if tool == "tap":
@@ -163,9 +160,14 @@ class FakePhone:
         raise ToolError(f"unknown tool {tool!r}")
 
     # -------------------------------------------------------------- internals
+    def _enter(self, screen: str) -> None:
+        """Every screen change goes through here, so `visits` cannot drift."""
+        self.screen = screen
+        self.visits.append(screen)
+
     def _goto(self, screen: str) -> None:
         self.stack.append(self.screen)
-        self.screen = screen
+        self._enter(screen)
 
     def _job(self, job_id: int | None) -> tuple[int, str, str]:
         for jid, title, company in JOBS:
@@ -195,7 +197,7 @@ class FakePhone:
             self.form_job = self.current_job
             self.stack.append(self.screen)
             self.stack.append("job_detail")
-            self.screen = "apply_form"
+            self._enter("apply_form")
             return "opened application form"
         if element_id.startswith("chat_"):
             self.chat_open = int(element_id.split("_")[1])
@@ -238,7 +240,7 @@ class FakePhone:
 
     def _close_confirmation(self) -> None:
         self.stack = ["home"]
-        self.screen = "jobs"
+        self._enter("jobs")
 
     def _submit_form(self) -> None:
         if not self.draft["name"] or not self.draft["email"]:
@@ -272,11 +274,11 @@ class FakePhone:
             return "went back"
         if key == "home":
             self.stack.clear()
-            self.screen = "home"
+            self._enter("home")
             return "went home"
         raise ToolError(f"unknown key {key!r}")
 
     def _back(self) -> None:
         if not self.stack:
             raise ToolError("nothing to go back to")
-        self.screen = self.stack.pop()
+        self._enter(self.stack.pop())
