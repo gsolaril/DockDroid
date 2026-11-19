@@ -1,0 +1,15 @@
+# Runtime dependencies.
+#
+# Lesson 0.1 (harness + fake phone) needs nothing outside the standard library.
+# Each line here is loaded into the installed package via pyproject.toml:
+#   [tool.setuptools.dynamic]
+#   dependencies = {file = ["requirements.txt"]}
+#
+# Keep one requirement per line, valid PEP 508. Add a dependency only when the
+# lesson that needs it arrives -- and only after the current one is measured.
+
+anthropic>=0.40.0
+
+# The real phone layer (lesson 1.x) -- uncomment when it arrives:
+# uiautomator2==3.4.0
+# adbutils>=2.5.0

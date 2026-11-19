@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dockdroid"
+version = "0.1.0"
+description = "A deterministic harness for LLM agents that drive Android apps."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MPL-2.0"
+license-files = ["LICENSE"]
+keywords = ["llm", "agents", "android", "automation", "harness", "eval"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Testing",
+]
+# Dependencies are declared once, in requirements.txt, and loaded from there.
+dynamic = ["dependencies"]
+
+[project.scripts]
+dockdroid = "dockdroid.cli:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["dockdroid*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
