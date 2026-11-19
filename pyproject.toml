@@ -41,3 +41,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+# House style spaces defaults and keyword arguments (n = 3, key = value).
+ignore = ["E251", "E252"]
